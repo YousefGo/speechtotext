@@ -37,4 +37,8 @@ python transcribe.py -t [recording secend ]
 
 
 
+the text file names as recording.txt
+
+
+
 
