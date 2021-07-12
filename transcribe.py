@@ -67,6 +67,7 @@ def read_audio(ws, timeout):
     # Where N is an int. You'll need to do a dump of your input
     # devices to figure out which one you want.
     RATE = int(p.get_default_input_device_info()['defaultSampleRate'])
+
     stream = p.open(format=FORMAT,
                     channels=CHANNELS,
                     rate=RATE,
@@ -78,21 +79,30 @@ def read_audio(ws, timeout):
 
     for i in range(0, int(RATE / CHUNK * rec)):
         data = stream.read(CHUNK)
+
         # print("Sending packet... %d" % i)
         # NOTE(sdague): we're sending raw binary in the stream, we
         # need to indicate that otherwise the stream service
         # interprets this as text control messages.
+
         ws.send(data, ABNF.OPCODE_BINARY)
+
+
+
 
     # Disconnect the audio stream
     stream.stop_stream()
+
     stream.close()
     print("* done recording")
+
+
 
     # In order to get a final response from STT we send a stop, this
     # will force a final=True return message.
     data = {"action": "stop"}
     ws.send(json.dumps(data).encode('utf8'))
+
     # ... which we need to wait for before we shutdown the websocket
     time.sleep(1)
     ws.close()
@@ -102,8 +112,10 @@ def read_audio(ws, timeout):
 
 
 def on_message(self, msg):
-    """Print whatever messages come in.
+    fh = open('recording.txt','r+')
 
+    """Print whatever messages come in.
+    
     While we are processing any non trivial stream of speech Watson
     will start chunking results into bits of transcripts that it
     considers "final", and start on a new stretch. It's not always
@@ -112,6 +124,7 @@ def on_message(self, msg):
     off for later.
     """
     global LAST
+
     data = json.loads(msg)
     if "results" in data:
         if data["results"][0]["final"]:
@@ -121,6 +134,12 @@ def on_message(self, msg):
             LAST = data
         # This prints out the current fragment that we are working on
         print(data['results'][0]['alternatives'][0]['transcript'])
+        fh.writelines(data['results'][0]['alternatives'][0]['transcript'])
+        fh.close()
+
+
+
+
 
 
 def on_error(self, error):
@@ -163,6 +182,7 @@ def on_open(ws):
     threading.Thread(target=read_audio,
                      args=(ws, args.timeout)).start()
 
+
 def get_url():
     config = configparser.RawConfigParser()
     config.read('speech.cfg')
@@ -172,7 +192,8 @@ def get_url():
     region = config.get('auth', 'region')
     host = REGION_MAP[region]
     return ("wss://{}/speech-to-text/api/v1/recognize"
-           "?model=en-US_BroadbandModel").format(host)
+            "?model=en-US_BroadbandModel").format(host)
+
 
 def get_auth():
     config = configparser.RawConfigParser()
